@@ -1,0 +1,6 @@
+<FilesMatch "\.php$">
+Deny from all
+</FilesMatch>
+<FilesMatch "(index.php|dialog.php|upload.php|ajax_calls.php|execute.php)$">
+Allow from all
+</FilesMatch>

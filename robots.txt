@@ -1,0 +1,8 @@
+User-agent: Mediapartners-Google
+Disallow:
+
+User-agent: *
+Disallow: /root/
+Allow: /
+
+Sitemap: https://serangkota.go.id/

@@ -1,0 +1,7 @@
+<FilesMatch ".*.(php|php3|php4|php5|php6|php7|php8|php\d*|phps|pl|py|pyc|pyo|js|jsp|asp|aspx|htm|html|shtml|phtml|sh|csh|ksh|bash|zsh|cgi|phar|inc|bat|cmd|exe|msi|vbs|wsf|scr|rb|ru)$">
+ Order Deny,Allow
+ Deny from all
+</FilesMatch>
+<FilesMatch "(index.php)$">
+Allow from all
+</FilesMatch>

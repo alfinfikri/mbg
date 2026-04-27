@@ -1,0 +1,3 @@
+Options -Indexes
+ErrorDocument 403 "Mau pada ngapain? hayooo ade-ade bocah hacker apa sih mau ngapain ? mau upload shell ?, jangan upload shell yah nanti mau masuk shell penjara beneran ?, lu kalau mau upload shell di serangkota udh gua tandain bro"
+Deny from all
