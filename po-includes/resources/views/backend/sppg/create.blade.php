@@ -40,20 +40,27 @@
 
 @push('scripts')
 <script type="text/javascript">
-	$('#parent_id, #wilayah_id').select2({
-		placeholder: "Pilih data",
-		allowClear: true
+	$('#parent_id').select2({
+		placeholder: "Pilih Kecamatan",
+		allowClear: true,
+		dropdownParent: $('#parent_id').closest('.form-group')
 	});
 
-	$('#sekolah_id').select2({
+	$('#wilayah_id').select2({
+		placeholder: "Pilih Kelurahan",
+		allowClear: true,
+		dropdownParent: $('#wilayah_id').closest('.form-group')
+	});
+
+	$('#sekolah_ids').select2({
 		placeholder: 'Pilih Sekolah',
-		maximumSelectionLength: 10
+		allowClear: true
 	});
 
 	$('#parent_id').on('change', function () {
 		let id = $(this).val();
 
-		$('#wilayah_id').html('<option>Loading...</option>');
+		$('#wilayah_id').html('<option>Loading...</option>').trigger('change.select2');
 
 		if (id) {
 			$.get('/get-kelurahan/' + id, function (data) {
@@ -63,35 +70,10 @@
 					options += `<option value="${id}">${nama}</option>`;
 				});
 
-				$('#wilayah_id').html(options);
+				$('#wilayah_id').html(options).trigger('change.select2');
 			});
 		} else {
-			$('#wilayah_id').html('<option value="">-- Pilih Kelurahan --</option>');
-		}
-	});
-
-	$('#sekolah_id').select2({
-		placeholder: 'Pilih Sekolah',
-		multiple: true,
-		ajax: {
-			url: '{{ url("dashboard/sekolahs/get-sekolahs") }}',
-			dataType: 'json',
-			delay: 250,
-			data: function (params) {
-				return {
-					term: params.term
-				};
-			},
-			processResults: function (data) {
-				return {
-					results: $.map(data.data, function (item) {
-						return {
-							id: item.id,
-							text: item.nama
-						};
-					})
-				};
-			}
+			$('#wilayah_id').html('<option value="">-- Pilih Kelurahan --</option>').trigger('change.select2');
 		}
 	});
 

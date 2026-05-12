@@ -9,6 +9,11 @@ use App\Post;
 use App\MenuHarian;
 use App\Subscribe;
 use App\ViewPage;
+use App\Distribusi;
+use App\LaporanSekolah;
+use App\Sekolah;
+use App\Sppg;
+use Illuminate\Support\Facades\Schema;
 
 class HomeController extends Controller
 {
@@ -53,13 +58,38 @@ class HomeController extends Controller
 		// Check duplicates IP
         $visit = ViewPage::select('ip')->where('ip', strip_tags($request->ip()))->count();
 
-		$todayMenu = MenuHarian::latest('created_at')->first();
+		$todayMenu = MenuHarian::with('sppg')
+			->whereDate('tanggal', now()->toDateString())
+			->latest('id')
+			->first();
+
+		if (!$todayMenu) {
+			$todayMenu = MenuHarian::with('sppg')->latest('tanggal')->latest('id')->first();
+		}
+
+		$stats = [
+			'total_sekolah' => Sekolah::count(),
+			'total_sppg' => Sppg::count(),
+			'total_penerima' => Sekolah::sum('jumlah_total'),
+			'total_menu' => MenuHarian::count(),
+		];
+
+		$distribusiHariIniQuery = Distribusi::whereDate('tanggal', now()->toDateString());
+		$ringkasanHariIni = [
+			'total_distribusi' => (clone $distribusiHariIniQuery)->count(),
+			'sudah_lapor' => (clone $distribusiHariIniQuery)->where('status_distribusi', '>', 1)->count(),
+			'belum_lapor' => (clone $distribusiHariIniQuery)->where('status_distribusi', 1)->count(),
+			'total_porsi' => (clone $distribusiHariIniQuery)->sum('jumlah_porsi'),
+			'laporan_sekolah' => Schema::hasTable('laporan_sekolahs')
+				? LaporanSekolah::whereDate('tanggal', now()->toDateString())->count()
+				: 0,
+		];
 
         if ($visit >= 1) {
-            return view(getTheme('home'), compact('todayMenu'));
+            return view(getTheme('home'), compact('todayMenu', 'stats', 'ringkasanHariIni'));
         }else{
 			visitor()->visit(); // create a visit log
-			return view(getTheme('home'), compact('todayMenu'));
+			return view(getTheme('home'), compact('todayMenu', 'stats', 'ringkasanHariIni'));
 		}
     }
 	

@@ -23,7 +23,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * @var array
      */
     protected $fillable = [
-        'sppg_id','name', 'username', 'email', 'password', 'telp', 'block', 'picture', 'created_by', 'updated_by'
+        'sppg_id', 'sekolah_id', 'name', 'username', 'email', 'password', 'telp', 'block', 'picture', 'created_by', 'updated_by'
     ];
 
     /**
@@ -55,5 +55,10 @@ class User extends Authenticatable implements MustVerifyEmail
     public function sppg()
     {
         return $this->belongsTo(\App\Sppg::class, 'sppg_id');
+    }
+
+    public function sekolah()
+    {
+        return $this->belongsTo(\App\Sekolah::class, 'sekolah_id');
     }
 }

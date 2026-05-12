@@ -36,7 +36,7 @@ class Sekolah extends Model
      * @var array
      */
     protected $fillable = [
-		'nama', 'jenis_id', 'status', 'wilayah_id', 'alamat', 'jumlah_total', 'created_by', 'updated_by'
+		'nama', 'jenis_id', 'status_layanan', 'wilayah_id', 'alamat', 'latitude', 'longitude', 'jumlah_total', 'created_by', 'updated_by'
 	];
 
     public function sppgs()
@@ -52,6 +52,26 @@ class Sekolah extends Model
     public function wilayah()
 	{
 		return $this->belongsTo('App\Wilayah', 'wilayah_id');
+	}
+
+	public function penerimas()
+	{
+		return $this->hasMany('App\Penerima', 'sekolah_id');
+	}
+
+	public function users()
+	{
+		return $this->hasMany('App\User', 'sekolah_id');
+	}
+
+	public function distribusis()
+	{
+		return $this->hasMany('App\Distribusi', 'sekolah_id');
+	}
+
+	public function laporanSekolahs()
+	{
+		return $this->hasMany('App\LaporanSekolah', 'sekolah_id');
 	}
 	
 	public function createdBy()

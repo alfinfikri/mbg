@@ -99,5 +99,19 @@
 				@endforeach
 			</select>
 		</div>
+		<div class="form-group col-md-12" id="sekolah-wrapper" style="display:none;">
+			{!! Form::label('sekolah_id', 'Sekolah', ['class' => 'control-label']) !!}
+			
+			<select name="sekolah_id" class="form-control">
+				<option value="">-- Pilih Sekolah --</option>
+
+				@foreach($sekolahs as $id => $nama)
+					<option value="{{ $id }}"
+						{{ old('sekolah_id', $user->sekolah_id ?? '') == $id ? 'selected' : '' }}>
+						{{ $nama }}
+					</option>
+				@endforeach
+			</select>
+		</div>
 	</div>
 @endif

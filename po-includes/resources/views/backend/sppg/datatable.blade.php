@@ -29,7 +29,10 @@
 							<th style="text-align:center;" width="25">{{ __('general.id') }}</th>
 							<th>Nama</th>
 							<th>Wilayah</th>
-							<th>Sekolah Penerima MBG</th>
+							<th>Jumlah Sekolah</th>
+							<th>Total Penerima</th>
+							<th>Kapasitas Produksi</th>
+							<th>Status Layanan</th>
 							<th style="text-align:center;" width="140">{{ __('general.actions') }}</th>
 							<th></th>
 						</tr>
@@ -39,7 +42,7 @@
 							<td style="width:10px;" style="text-align:center;">
 								<input type="checkbox" id="titleCheck" data-toggle="tooltip" title="{{ __('general.check_all') }}" />
 							</td>
-							<td colspan="5">
+							<td colspan="8">
 								<button class="btn btn-sm btn-danger" type="button" data-toggle="modal" data-target="#alertalldel"><i class="fa fa-trash"></i> {{ __('general.delete_selected') }}</button>
 							</td>
 							<td><button class="btn btn-xs btn-danger d-block d-sm-none" type="button" data-toggle="modal" data-target="#alertalldel">{{ __('general.delete') }}</button></td>
@@ -82,7 +85,10 @@
 				{ data: 'id', name: 'sppgs.id' },
 				{ data: 'nama', name: 'sppgs.nama' },
 				{ data: 'wilayah', name: 'sppgs.wilayah' },
-				{ data: 'sekolah', name: 'sppgs.sekolah' },
+				{ data: 'jumlah_sekolah', name: 'jumlah_sekolah', searchable: false },
+				{ data: 'total_penerima', name: 'total_penerima', searchable: false },
+				{ data: 'kapasitas_produksi', name: 'sppgs.kapasitas_produksi' },
+				{ data: 'status_layanan', name: 'sppgs.status_layanan' },
 				{ data: 'action', name: 'action', orderable: false, searchable: false },
 				{ data: 'control', name: 'control', orderable: false, searchable: false },
 			],

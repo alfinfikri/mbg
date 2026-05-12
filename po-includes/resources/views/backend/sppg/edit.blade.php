@@ -44,14 +44,21 @@
 
 @push('scripts')
 <script>
-	$('#parent_id, #wilayah_id').select2({
-		placeholder: "Pilih data",
-		allowClear: true
+	$('#parent_id').select2({
+		placeholder: "Pilih Kecamatan",
+		allowClear: true,
+		dropdownParent: $('#parent_id').closest('.form-group')
 	});
 
-	$('#sekolah_id').select2({
+	$('#wilayah_id').select2({
+		placeholder: "Pilih Kelurahan",
+		allowClear: true,
+		dropdownParent: $('#wilayah_id').closest('.form-group')
+	});
+
+	$('#sekolah_ids').select2({
 		placeholder: 'Pilih Sekolah',
-		maximumSelectionLength: 10
+		allowClear: true
 	});
 	
 	$(document).ready(function () {
@@ -62,7 +69,7 @@
 		function loadKelurahan(kecamatanId, selected = null) {
 			if (!kecamatanId) return;
 
-			$('#wilayah_id').html('<option>Loading...</option>');
+			$('#wilayah_id').html('<option>Loading...</option>').trigger('change.select2');
 
 			$.get('/get-kelurahan/' + kecamatanId, function (data) {
 				let options = '<option value="">-- Pilih Kelurahan --</option>';
@@ -72,7 +79,7 @@
 					options += `<option value="${id}" ${isSelected}>${nama}</option>`;
 				});
 
-				$('#wilayah_id').html(options);
+				$('#wilayah_id').html(options).trigger('change.select2');
 			});
 		}
 
@@ -83,34 +90,15 @@
 
 		// Ganti kecamatan
 		$('#parent_id').on('change', function () {
-			loadKelurahan($(this).val());
+			let kecamatanId = $(this).val();
+			if (kecamatanId) {
+				loadKelurahan(kecamatanId);
+			} else {
+				$('#wilayah_id').html('<option value="">-- Pilih Kelurahan --</option>').trigger('change.select2');
+			}
 		});
 
 	});
 
-	$('#sekolah_id').select2({
-		placeholder: 'Pilih Sekolah',
-		multiple: true,
-		ajax: {
-			url: '{{ url("dashboard/sekolahs/get-sekolahs") }}',
-			dataType: 'json',
-			delay: 250,
-			data: function (params) {
-				return {
-					term: params.term
-				};
-			},
-			processResults: function (data) {
-				return {
-					results: $.map(data.data, function (item) {
-						return {
-							id: item.id,
-							text: item.nama
-						};
-					})
-				};
-			}
-		}
-	});
 </script>
 @endpush

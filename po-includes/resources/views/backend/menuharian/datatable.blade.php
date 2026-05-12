@@ -8,31 +8,31 @@
 				<ol class="breadcrumb breadcrumb-style1 mg-b-10">
 					<li class="breadcrumb-item"><a href="{{ url('/dashboard') }}">{{ __('general.dashboard') }}</a></li>
 					<li class="breadcrumb-item"><a href="#">MASTER</a></li>
-					<li class="breadcrumb-item"><a href="{{ url('/dashboard/menuharians/table') }}">Daily Menu</a></li>
+					<li class="breadcrumb-item"><a href="{{ url('/dashboard/menu-harians/table') }}">Daily Menu</a></li>
 					<li class="breadcrumb-item active" aria-current="page">LIST Daily Menu</li>
 				</ol>
 			</nav>
 			<h4 class="mg-b-0 tx-spacing--1">LIST Daily Menu</h4>
 		</div>
 		
-		<div><a href="{{ url('dashboard/menuharians/create') }}" class="btn btn-sm pd-x-15 btn-white btn-uppercase mg-t-10"><i data-feather="plus" class="wd-10 mg-r-5"></i> {{ __('general.add') }}</a></div>
+		<div><a href="{{ url('dashboard/menu-harians/create') }}" class="btn btn-sm pd-x-15 btn-white btn-uppercase mg-t-10"><i data-feather="plus" class="wd-10 mg-r-5"></i> {{ __('general.add') }}</a></div>
 	</div>
 	
 	<div class="card">
 		<div class="card-body">
-			{!! Form::open(['url' => 'dashboard/menuharians/deleteall', 'method' => 'post', 'class' => 'form-horizontal']) !!}
+			{!! Form::open(['url' => 'dashboard/menu-harians/deleteall', 'method' => 'post', 'class' => 'form-horizontal']) !!}
 				<input type="hidden" name="totaldata" id="totaldata" value="0" />
 				<table class="table table-striped" id="menuharians-table">
 					<thead>
 						<tr>
 							<th style="text-align:center;" width="15"></th>
 							<th style="text-align:center;" width="25">{{ __('general.id') }}</th>
-							@if(!Auth::user()->hasRole('sppg'))
-								<th>SPPG</th>
-							@endif
 							<th>Tanggal</th>
+							<th>Foto</th>
 							<th>Nama</th>
-							<th>Deskripsi</th>
+							<th>SPPG</th>
+							<th>Gizi Kecil</th>
+							<th>Gizi Besar</th>
 							<th style="text-align:center;" width="140">{{ __('general.actions') }}</th>
 							<th></th>
 						</tr>
@@ -42,7 +42,7 @@
 							<td style="width:10px;" style="text-align:center;">
 								<input type="checkbox" id="titleCheck" data-toggle="tooltip" title="{{ __('general.check_all') }}" />
 							</td>
-							<td colspan="{{ Auth::user()->sppg_id ? 5 : 6 }}">
+							<td colspan="8">
 								<button class="btn btn-sm btn-danger" type="button" data-toggle="modal" data-target="#alertalldel"><i class="fa fa-trash"></i> {{ __('general.delete_selected') }}</button>
 							</td>
 							<td><button class="btn btn-xs btn-danger d-block d-sm-none" type="button" data-toggle="modal" data-target="#alertalldel">{{ __('general.delete') }}</button></td>
@@ -69,7 +69,7 @@
 					target: -1
 				}
 			},
-			ajax: '{{ url("dashboard/menuharians/data") }}',
+			ajax: '{{ url("dashboard/menu-harians/data") }}',
 			autoWidth: false,
 			order: [[1, 'desc']],
 			columnDefs: [{
@@ -83,12 +83,12 @@
 			columns: [
 				{ data: 'check', name: 'check', orderable: false, searchable: false },
 				{ data: 'id', name: 'menu_harians.id' },
-				@if(!Auth::user()->hasRole('sppg'))
-				{ data: 'sppg', name: 'sppgs.nama' },
-				@endif
 				{ data: 'tanggal', name: 'menu_harians.tanggal' },
+				{ data: 'foto', name: 'foto', orderable: false, searchable: false },
 				{ data: 'nama', name: 'menu_harians.nama' },
-				{ data: 'deskripsi', name: 'menu_harians.deskripsi' },
+				{ data: 'sppg', name: 'sppg', orderable: false, searchable: false },
+				{ data: 'gizi_kecil', name: 'gizi_kecil', orderable: false, searchable: false },
+				{ data: 'gizi_besar', name: 'gizi_besar', orderable: false, searchable: false },
 				{ data: 'action', name: 'action', orderable: false, searchable: false },
 				{ data: 'control', name: 'control', orderable: false, searchable: false },
 			],

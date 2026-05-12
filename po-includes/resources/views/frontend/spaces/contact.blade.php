@@ -56,7 +56,7 @@
 					</div>
 				</div>
 				
-				<form method="POST" action="{{ url('/contact/send') }}" enctype="multipart/form-data" class="space-y-5">
+				<form method="POST" action="{{ url('/kontak-pengaduan') }}" enctype="multipart/form-data" class="space-y-5">
 					@csrf
 
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -71,7 +71,7 @@
 							<label class="text-xs font-semibold ml-1">Nomor Telepon/WA</label>
 							<input name="no_hp" value="{{ old('no_hp') }}"
 								class="w-full bg-surface-container-low border-none rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 transition-all"
-								placeholder="0812..." type="tel" required/>
+								placeholder="0812..." type="tel"/>
 						</div>
 					</div>
 
@@ -157,7 +157,7 @@
 						<span class="material-symbols-outlined text-primary text-xl">call</span>
 					</div>
 					<div>
-						<p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-0.5">Layanan Telepon</p>
+						<p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-0.5">Layanan Call Center SAGI</p>
 						<p class="text-on-surface font-bold text-base">{{ getSetting('telephone') }}</p>
 						<p class="text-[11px] text-on-surface-variant">Bebas Pulsa (08:00 - 17:00 WIB)</p>
 					</div>

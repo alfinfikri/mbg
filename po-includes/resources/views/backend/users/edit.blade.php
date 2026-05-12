@@ -47,26 +47,38 @@
 <script>
 	$(document).ready(function () {
 
-		function toggleSppg() {
+		function toggleUserContext() {
 			let role = $('#roles').val();
 
 			if (role === 'sppg') {
 				$('#sppg-wrapper').fadeIn();
 				$('#sppg-wrapper').slideDown();
+				$('#sekolah-wrapper').fadeOut();
+				$('#sekolah-wrapper').slideUp();
+				$('#sekolah-wrapper select').val('');
+			} else if (role === 'sekolah') {
+				$('#sekolah-wrapper').fadeIn();
+				$('#sekolah-wrapper').slideDown();
+				$('#sppg-wrapper').fadeOut();
+				$('#sppg-wrapper').slideUp();
+				$('#sppg-wrapper select').val('');
 			} else {				
 				$('#sppg-wrapper').fadeOut();
 				$('#sppg-wrapper').slideUp();
 				$('#sppg-wrapper select').val('');
+				$('#sekolah-wrapper').fadeOut();
+				$('#sekolah-wrapper').slideUp();
+				$('#sekolah-wrapper select').val('');
 			}
 		}
 
 		// trigger saat change
 		$('#roles').on('change', function () {
-			toggleSppg();
+			toggleUserContext();
 		});
 
 		// trigger saat load (edit mode)
-		toggleSppg();
+		toggleUserContext();
 
 	});
 </script>

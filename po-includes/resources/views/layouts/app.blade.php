@@ -40,12 +40,21 @@
               <i data-feather="menu"></i>
               <i data-feather="x"></i>
             </a>
-        </div>
+		</div>
         <div class="aside-body">
 			<ul class="nav nav-aside">
-				@if (Auth::user()->hasRole('superadmin') || Auth::user()->hasRole('superadmin 2'))
+				@php
+					$isSuperAdmin = Auth::user()->hasRole('superadmin') || Auth::user()->hasRole('superadmin 2');
+					$isAdminUtama = $isSuperAdmin || Auth::user()->hasRole('admin');
+					$isUserSppg = Auth::user()->hasRole('sppg');
+					$isUserSekolah = Auth::user()->hasRole('sekolah');
+				@endphp
+
+				@if ($isAdminUtama)
 				<li class="nav-label">{{ __('general.dashboard') }}</li>
 				<li class="nav-item"><a href="{{ url('/dashboard') }}" class="nav-link"><i data-feather="tv"></i> <span>{{ __('general.dashboard') }}</span></a></li>
+
+				@if ($isSuperAdmin)
 				<li class="nav-label mg-t-25">{{ __('general.content') }}</li>
 				<li class="nav-item"><a href="{{ url('/dashboard/posts/table') }}" class="nav-link"><i data-feather="book-open"></i> <span>{{ __('general.posts') }}</span></a></li>
 				<li class="nav-item"><a href="{{ url('/dashboard/categories/table') }}" class="nav-link"><i data-feather="folder-plus"></i> <span>{{ __('general.categories') }}</span></a></li>
@@ -54,25 +63,45 @@
 				<li class="nav-label mg-t-25">{{ __('general.appearance') }}</li>
 				<!-- <li class="nav-item"><a href="{{ url('/dashboard/menu-manager') }}" class="nav-link"><i data-feather="list"></i> <span>{{ __('general.menu_manager') }}</span></a></li> -->
 				<li class="nav-item"><a href="{{ url('/dashboard/settings') }}" class="nav-link"><i data-feather="settings"></i> <span>{{ __('general.settings') }}</span></a></li>
-				<li class="nav-label mg-t-25">Master</li>
-				<li class="nav-item"><a href="{{ url('/dashboard/sekolahs/table') }}" class="nav-link"><i data-feather="briefcase"></i> <span>School</span></a></li>
+				@endif
+
+				<li class="nav-label mg-t-25">Master MBG</li>
+				<li class="nav-item"><a href="{{ url('/dashboard/sekolahs/table') }}" class="nav-link"><i data-feather="briefcase"></i> <span>Sekolah</span></a></li>
 				<li class="nav-item"><a href="{{ url('/dashboard/sppgs/table') }}" class="nav-link"><i data-feather="home"></i> <span>SPPG</span></a></li>
+				<li class="nav-item"><a href="{{ url('/dashboard/menu-harians/table') }}" class="nav-link"><i data-feather="gift"></i> <span>Menu Harian</span></a></li>
+				<li class="nav-item"><a href="{{ url('/dashboard/distribusis/table') }}" class="nav-link"><i data-feather="package"></i> <span>Distribusi MBG</span></a></li>
+				<li class="nav-item"><a href="{{ url('/dashboard/laporan-sekolahs/table') }}" class="nav-link"><i data-feather="clipboard"></i> <span>Laporan Sekolah</span></a></li>
 				<li class="nav-item"><a href="{{ url('/dashboard/aduans/table') }}" class="nav-link"><i data-feather="volume-2"></i> <span>Aduan MBG</span></a></li>
+
+				@if ($isSuperAdmin || Auth::user()->can('read-users'))
 				<li class="nav-label mg-t-25">{{ __('general.user') }}</li>
 				<li class="nav-item"><a href="{{ url('/dashboard/users/table') }}" class="nav-link"><i data-feather="users"></i> <span>{{ __('general.users') }}</span></a></li>
+				@endif
+				@if ($isSuperAdmin)
 				<li class="nav-item"><a href="{{ url('/dashboard/roles/table') }}" class="nav-link"><i data-feather="life-buoy"></i> <span>{{ __('general.roles') }}</span></a></li>
 				<li class="nav-item"><a href="{{ url('/dashboard/permissions/table') }}" class="nav-link"><i data-feather="shield"></i> <span>{{ __('general.permissions') }}</span></a></li>
-				@elseif (Auth::user()->hasRole('admin'))
+				@endif
+
+				@elseif ($isUserSppg)
 				<li class="nav-label">{{ __('general.dashboard') }}</li>
 				<li class="nav-item"><a href="{{ url('/dashboard') }}" class="nav-link"><i data-feather="tv"></i> <span>{{ __('general.dashboard') }}</span></a></li>
-				<li class="nav-label mg-t-25">{{ __('general.content') }}</li>
+				<li class="nav-label mg-t-25">Operasional SPPG</li>
+				<li class="nav-item"><a href="{{ url('/dashboard/menu-harians/table') }}" class="nav-link"><i data-feather="gift"></i> <span>Menu Harian</span></a></li>
+				<li class="nav-item"><a href="{{ url('/dashboard/distribusis/table') }}" class="nav-link"><i data-feather="package"></i> <span>Distribusi MBG</span></a></li>
+				<li class="nav-item"><a href="{{ url('/dashboard/laporan-sekolahs/table') }}" class="nav-link"><i data-feather="clipboard"></i> <span>Laporan Sekolah</span></a></li>
 				<li class="nav-item"><a href="{{ url('/dashboard/aduans/table') }}" class="nav-link"><i data-feather="volume-2"></i> <span>Aduan MBG</span></a></li>
+
+				@elseif ($isUserSekolah)
+				<li class="nav-label">{{ __('general.dashboard') }}</li>
+				<li class="nav-item"><a href="{{ url('/dashboard') }}" class="nav-link"><i data-feather="tv"></i> <span>{{ __('general.dashboard') }}</span></a></li>
+				<li class="nav-label mg-t-25">Sekolah</li>
+				<li class="nav-item"><a href="{{ url('/dashboard/laporan-sekolahs/table') }}" class="nav-link"><i data-feather="clipboard"></i> <span>Laporan Sekolah</span></a></li>
+				<li class="nav-item"><a href="{{ url('/dashboard/distribusis/table') }}" class="nav-link"><i data-feather="package"></i> <span>Distribusi MBG</span></a></li>
+				<li class="nav-item"><a href="{{ url('/dashboard/aduans/table') }}" class="nav-link"><i data-feather="volume-2"></i> <span>Aduan MBG</span></a></li>
+
 				@else
 				<li class="nav-label">{{ __('general.dashboard') }}</li>
 				<li class="nav-item"><a href="{{ url('/dashboard') }}" class="nav-link"><i data-feather="tv"></i> <span>{{ __('general.dashboard') }}</span></a></li>
-				<li class="nav-label mg-t-25">{{ __('general.content') }}</li>
-				<li class="nav-item"><a href="{{ url('/dashboard/menuharians/table') }}" class="nav-link"><i data-feather="gift"></i> <span>Daily Menu MBG</span></a></li>
-				<li class="nav-item"><a href="{{ url('/dashboard/deliverys/table') }}" class="nav-link"><i data-feather="package"></i> <span>Delivery MBG</span></a></li>
 				@endif
 			</ul>
 		</div>

@@ -36,15 +36,42 @@ class MenuHarian extends Model
      * @var array
      */
     protected $fillable = [
-        'tanggal','nama','sppg_id','deskripsi','foto',
-        'kecil_energi','kecil_lemak','kecil_protein','kecil_karbohidrat','kecil_serat',
-        'besar_energi','besar_lemak','besar_protein','besar_karbohidrat','besar_serat',
-        'created_by','updated_by'
+        'tanggal',
+        'nama',
+        'sppg_id',
+        'deskripsi',
+        'foto',
+        'kecil_energi',
+        'kecil_lemak',
+        'kecil_protein',
+        'kecil_karbohidrat',
+        'kecil_serat',
+        'besar_energi',
+        'besar_lemak',
+        'besar_protein',
+        'besar_karbohidrat',
+        'besar_serat',
+        'created_by',
+        'updated_by'
+    ];
+
+    protected $casts = [
+        'tanggal' => 'date',
     ];
 
     public function sppg()
     {
         return $this->belongsTo(\App\Sppg::class, 'sppg_id');
+    }
+
+    public function distribusis()
+    {
+        return $this->hasMany(\App\Distribusi::class, 'menu_harian_id');
+    }
+
+    public function laporanSekolahs()
+    {
+        return $this->hasMany(\App\LaporanSekolah::class, 'menu_harian_id');
     }
 
 	public function createdBy()

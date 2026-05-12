@@ -8,76 +8,43 @@ use Illuminate\Http\Request;
 
 use App\MenuHarian;
 use App\Sppg;
-use Carbon\Carbon;
-use DB;
+use App\Sekolah;
+use App\Distribusi;
+
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Yajra\Datatables\Datatables;
 use Vinkla\Hashids\Facades\Hashids;
 
 class MenuharianController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return void
-     */
-	public $path;
-
-	public function __construct()
-	{
-		//DEFINISIKAN PATH
-		$this->path = storage_path('app/public');
-	}
-
-	function uploadFile($request, $field, $prefix) 
-	{
-		if ($request->hasFile($field)) {
-			$file = $request->file($field);
-			$nama_file = Carbon::now()->timestamp . "_{$prefix}_" . uniqid() . '.' .
-						str_replace(' ', '-', $file->getClientOriginalExtension());
-			$file->move($this->path, $nama_file);
-			return $nama_file;
-		}
-		return null;
-	}
-
     public function index(Request $request)
     {
-		if(Auth::user()->can('read-menuharians')) {
+		if($this->canList()) {
 			return view('backend.menuharian.datatable');
-		} else {
-			return redirect('forbidden');
 		}
+
+		return redirect('forbidden');
     }
-	
-	/**
-	 * Displays datatables front end view
-	 *
-	 * @return \Illuminate\View\View
-	 */
-    public function getIndex()
+
+	public function getIndex()
 	{
-		if(Auth::user()->can('read-menuharians')) {
+		if($this->canList()) {
 			return view('backend.menuharian.datatable');
-		} else {
-			return redirect('forbidden');
 		}
+
+		return redirect('forbidden');
 	}
-	
-	/**
-	 * Process datatables ajax request.
-	 *
-	 * @return \Illuminate\Http\JsonResponse
-	 */
+
 	public function anyData()
 	{
-		if (Auth::user()->sppg_id) {
-			$menuharians = MenuHarian::with('sppg')
-				->when(Auth::user()->sppg_id, fn($q) => $q->where('sppg_id', Auth::user()->sppg_id))
-				->orderBy('id', 'desc');
-		} else {
-			$menuharians = MenuHarian::with('sppg')
-				->orderBy('id', 'desc');
+		if (!$this->canList()) {
+			abort(403);
 		}
+
+		$menuharians = $this->visibleMenuHarians(MenuHarian::with('sppg'))
+			->orderBy('id', 'desc');
 
 		return Datatables::of($menuharians)
 			->addColumn('check', function ($menuharian) {
@@ -86,131 +53,108 @@ class MenuharianController extends Controller
 					<input type="hidden" class="deldata" name="id[]" value="'.Hashids::encode($menuharian->id).'" disabled />
 				</div>';
 			})
-			->addColumn('sppg', function ($s) {
-				return optional($s->sppg)->nama ?? '-';
-			})
-			->addColumn('tanggal', function ($s) {
-				return \Carbon\Carbon::parse($s->tanggal)->format('d-m-Y');
+			->addColumn('tanggal', fn($s) => optional($s->tanggal)->format('d-m-Y') ?: '-')
+			->addColumn('foto', function ($s) {
+				if (!$s->foto) return '-';
+
+				return '<img src="'.$this->fotoUrl($s->foto).'" class="img-fluid rounded" style="width:60px;height:45px;object-fit:cover;" alt="">';
 			})
 			->addColumn('nama', fn($s) => $s->nama)
-			->addColumn('deskripsi', fn($s) => $s->deskripsi)
+			->addColumn('sppg', fn($s) => optional($s->sppg)->nama ?? '-')
+			->addColumn('gizi_kecil', fn($s) => $this->nutritionSummary($s, 'kecil'))
+			->addColumn('gizi_besar', fn($s) => $this->nutritionSummary($s, 'besar'))
             ->addColumn('action', function ($menuharian) {
 				$btn = '<div style="text-align:center;"><div class="btn-group">';
-				$btn .= '<a href="'.url('dashboard/menuharians/'.Hashids::encode($menuharian->id).'/edit').'" class="btn btn-primary btn-xs btn-icon" title="'.__('general.edit').'" data-toggle="tooltip" data-placement="left"><i class="fa fa-edit"></i></a>';
-				$btn .= '<a href="'.url('dashboard/menuharians/'.Hashids::encode($menuharian->id).'').'" class="btn btn-danger btn-xs btn-icon" data-delete="" title="'.__('general.delete').'" data-toggle="tooltip" data-placement="left"><i class="fa fa-trash"></i></a>';
+				$btn .= '<a href="'.url('dashboard/menu-harians/'.Hashids::encode($menuharian->id)).'" class="btn btn-info btn-xs btn-icon" title="'.__('general.show').'" data-toggle="tooltip" data-placement="left"><i class="fa fa-eye"></i></a>';
+				if ($this->canAccess('update') && $this->canModifyMenu($menuharian)) {
+					$btn .= '<a href="'.url('dashboard/menu-harians/'.Hashids::encode($menuharian->id).'/edit').'" class="btn btn-primary btn-xs btn-icon" title="'.__('general.edit').'" data-toggle="tooltip" data-placement="left"><i class="fa fa-edit"></i></a>';
+				}
+				if ($this->canAccess('delete') && $this->canModifyMenu($menuharian)) {
+					$btn .= '<a href="'.url('dashboard/menu-harians/'.Hashids::encode($menuharian->id).'').'" class="btn btn-danger btn-xs btn-icon" data-delete="" title="'.__('general.delete').'" data-toggle="tooltip" data-placement="left"><i class="fa fa-trash"></i></a>';
+				}
 				$btn .= '</div></div>';
 				return $btn;
             })
 			->addColumn('control', function ($menuharian) {
-				$check = '<div style="text-align:center;"><a href="javascript:void(0);" class="btn btn-secondary btn-xs btn-icon" data-placement="left"><i class="fa fa-plus"></i></a></div>';
-				return $check;
+				return '<div style="text-align:center;"><a href="javascript:void(0);" class="btn btn-secondary btn-xs btn-icon" data-placement="left"><i class="fa fa-plus"></i></a></div>';
 			})
 			->escapeColumns([])
+			->rawColumns(['foto', 'action'])
 			->make(true);
 	}
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\View\View
-     */
-    public function create()
+	public function create()
     {
-		if(Auth::user()->can('create-menuharians')) { 	
-			$sppgs = Sppg::pluck('nama', 'id');
+		if($this->canCreateMenu()) {
+			$sppgs = Sppg::orderBy('nama')->pluck('nama', 'id');
+			$distribusiSekolahs = $this->availableDistribusiSekolahs($this->activeSppgId());
 
 			return view('backend.menuharian.create', [
 				'menuharian' => null,
-				'sppgs' => $sppgs
+				'sppgs' => $sppgs,
+				'distribusiSekolahs' => $distribusiSekolahs,
+				'distribusis' => collect(),
 			]);
-
-		} else {
-			return redirect('forbidden');
 		}
-    }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param \Illuminate\Http\Request $request
-     *
-     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
-     */
+		return redirect('forbidden');
+    }
 
 	public function store(Request $request)
 	{
-		if (Auth::user()->can('create-menuharians')) {
+		if (!$this->canCreateMenu()) {
+			return redirect('forbidden');
+		}
 
-			$this->validate($request, [
-				'tanggal' => 'required|date',
-				'nama' => 'required|string|max:255',
-				'sppg_id' => 'required|exists:sppgs,id',
-				'deskripsi' => 'nullable|string',
-				'foto' => 'required|string',
+		$validated = $this->validateMenuHarian($request);
+		$validated['sppg_id'] = $this->resolveInputSppgId($request);
 
-				'kecil_energi' => 'nullable|numeric',
-				'besar_energi' => 'nullable|numeric',
-				'kecil_lemak' => 'nullable|numeric',
-				'besar_lemak' => 'nullable|numeric',
-				'kecil_protein' => 'nullable|numeric',
-				'besar_protein' => 'nullable|numeric',
-				'kecil_karbohidrat' => 'nullable|numeric',
-				'besar_karbohidrat' => 'nullable|numeric',
-				'kecil_serat' => 'nullable|numeric',
-				'besar_serat' => 'nullable|numeric',
-			]);
+		try {
+			DB::transaction(function () use ($request, $validated) {
+				$validated['foto'] = $this->storeFoto($request);
+				$validated['created_by'] = Auth::id();
+				$validated['updated_by'] = Auth::id();
 
-			// tambahan field
-			$request->request->add([
-				'created_by' => Auth::user()->id,
-				'updated_by' => Auth::user()->id,
-			]);
+				$menuharian = MenuHarian::create($validated);
+				$this->syncDistribusiSekolah($request, $menuharian);
+			});
 
-			$requestData = $request->all();
-
-			MenuHarian::create($requestData);
-
-			return redirect('dashboard/menuharians')
+			return redirect('dashboard/menu-harians')
 				->with('flash_message', 'Menu harian berhasil disimpan');
 
-		} else {
-			return redirect('forbidden');
+		} catch (\Exception $e) {
+			return redirect()->back()
+				->with('error_message', $e->getMessage())
+				->withInput();
 		}
 	}
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     *
-     * @return \Illuminate\View\View
-     */
+
     public function show($id)
     {
-		if(Auth::user()->can('read-menuharians')) {
+		if($this->canAccess('read')) {
 			$ids = Hashids::decode($id);
-			$menuharian = MenuHarian::findOrFail($ids[0]);
+			$menuharian = MenuHarian::with(['sppg', 'createdBy', 'updatedBy', 'distribusis.sekolah'])->findOrFail($ids[0]);
 
-			return view('backend.menuharian.show', compact('menuharian'));
-		} else {
-			return redirect('forbidden');
+			if (!$this->canViewMenu($menuharian)) {
+				return redirect('forbidden');
+			}
+
+			$distribusiSekolahs = $this->availableDistribusiSekolahs($menuharian->sppg_id);
+			$distribusis = $menuharian->distribusis->keyBy('sekolah_id');
+
+			return view('backend.menuharian.show', compact('menuharian', 'distribusiSekolahs', 'distribusis'));
 		}
+
+		return redirect('forbidden');
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     *
-     * @return \Illuminate\View\View
-     */
     public function edit($id)
 	{
-		if (!Auth::user()->can('update-menuharians')) {
+		if (!$this->canAccess('update')) {
 			return redirect('forbidden')
 				->with('error_message', 'Tidak punya akses');
 		}
 
-		// decode hashid aman
 		$decoded = Hashids::decode($id);
 		$id = $decoded[0] ?? null;
 
@@ -218,32 +162,27 @@ class MenuharianController extends Controller
 			return redirect()->back()->with('error_message', 'ID tidak valid');
 		}
 
-		// ambil data + relasi (optional tapi bagus)
-		$menuharian = MenuHarian::findOrFail($id);
+		$menuharian = MenuHarian::with('distribusis')->findOrFail($id);
 
-		// dropdown sppg
-		$sppgs = Sppg::pluck('nama', 'id');
-
-		return view('backend.menuharian.edit', compact('menuharian', 'sppgs'));
-	}
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param  int  $id
-     *
-     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
-     */
-
-	public function update(Request $request, $id)
-	{
-		if (!Auth::user()->can('update-menuharians')) {
+		if (!$this->canModifyMenu($menuharian)) {
 			return redirect('forbidden')
 				->with('error_message', 'Tidak punya akses');
 		}
 
-		// decode hashid aman
+		$sppgs = Sppg::orderBy('nama')->pluck('nama', 'id');
+		$distribusiSekolahs = $this->availableDistribusiSekolahs($menuharian->sppg_id);
+		$distribusis = $menuharian->distribusis->keyBy('sekolah_id');
+
+		return view('backend.menuharian.edit', compact('menuharian', 'sppgs', 'distribusiSekolahs', 'distribusis'));
+	}
+
+	public function update(Request $request, $id)
+	{
+		if (!$this->canAccess('update')) {
+			return redirect('forbidden')
+				->with('error_message', 'Tidak punya akses');
+		}
+
 		$decoded = Hashids::decode($id);
 		$id = $decoded[0] ?? null;
 
@@ -254,106 +193,398 @@ class MenuharianController extends Controller
 
 		$menuharian = MenuHarian::findOrFail($id);
 
-		// VALIDASI
-		$request->validate([
-			'tanggal' => 'required|date',
-			'nama' => 'required|string|max:255',
-			'sppg_id' => 'required|exists:sppgs,id',
-			'deskripsi' => 'nullable|string',
-			'foto' => 'required|string',
-			'kecil_energi' => 'nullable|numeric',
-			'besar_energi' => 'nullable|numeric',
-			'kecil_lemak' => 'nullable|numeric',
-			'besar_lemak' => 'nullable|numeric',
-			'kecil_protein' => 'nullable|numeric',
-			'besar_protein' => 'nullable|numeric',
-			'kecil_karbohidrat' => 'nullable|numeric',
-			'besar_karbohidrat' => 'nullable|numeric',
-			'kecil_serat' => 'nullable|numeric',
-			'besar_serat' => 'nullable|numeric'
-		]);
+		if (!$this->canModifyMenu($menuharian)) {
+			return redirect('forbidden')
+				->with('error_message', 'Tidak punya akses');
+		}
+
+		$validated = $this->validateMenuHarian($request);
+		$validated['sppg_id'] = $this->resolveInputSppgId($request, $menuharian);
 
 		try {
-			DB::beginTransaction();
+			DB::transaction(function () use ($request, $menuharian, $validated) {
+				if ($request->hasFile('foto')) {
+					$this->deleteFoto($menuharian);
+					$validated['foto'] = $this->storeFoto($request);
+				} else {
+					unset($validated['foto']);
+				}
 
-			// 🔥 update data
-			$menuharian->update([
-				'tanggal' => $request->tanggal,
-				'nama' => $request->nama,
-				'sppg_id' => $request->sppg_id,
-				'deskripsi' => $request->deskripsi,
+				$validated['updated_by'] = Auth::id();
+				$menuharian->update($validated);
+				$this->syncDistribusiSekolah($request, $menuharian);
+			});
 
-				'kecil_energi' => $request->kecil_energi,
-				'kecil_lemak' => $request->kecil_lemak,
-				'kecil_protein' => $request->kecil_protein,
-				'kecil_karbohidrat' => $request->kecil_karbohidrat,
-				'kecil_serat' => $request->kecil_serat,
-
-				'besar_energi' => $request->besar_energi,
-				'besar_lemak' => $request->besar_lemak,
-				'besar_protein' => $request->besar_protein,
-				'besar_karbohidrat' => $request->besar_karbohidrat,
-				'besar_serat' => $request->besar_serat,
-
-				'foto' => $request->foto,
-				'updated_by' => Auth::id(),
-			]);
-
-			DB::commit();
-
-			return redirect('dashboard/menuharians')
+			return redirect('dashboard/menu-harians')
 				->with('flash_message', 'Menu harian berhasil diupdate');
 
 		} catch (\Exception $e) {
-			DB::rollBack();
-
 			return redirect()->back()
 				->with('error_message', $e->getMessage())
 				->withInput();
 		}
 	}
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     *
-     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector
-     */
     public function destroy($id)
     {
-		if(Auth::user()->can('delete-menuharians')) {
-			$ids = Hashids::decode($id);
-			MenuHarian::destroy($ids[0]);
-
-			return redirect('dashboard/menuharians')->with('flash_message', 'Data berhasil dihapus');
-		} else {
+		if(!$this->canAccess('delete')) {
 			return redirect('forbidden');
 		}
+
+		try {
+			$ids = Hashids::decode($id);
+			$menuharian = MenuHarian::findOrFail($ids[0]);
+
+			if (!$this->canModifyMenu($menuharian)) {
+				return redirect('forbidden');
+			}
+
+			DB::transaction(function () use ($menuharian) {
+				$this->deleteFoto($menuharian);
+				$menuharian->delete();
+			});
+
+			return redirect('dashboard/menu-harians')->with('flash_message', 'Data berhasil dihapus');
+		} catch (\Exception $e) {
+			return redirect()->back()->with('error_message', $e->getMessage());
+		}
     }
-	
-	/**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     *
-     * @return void
-     */
+
+	public function distribusi($id)
+	{
+		return $this->show($id);
+	}
+
+	public function saveDistribusi(Request $request, $id)
+	{
+		if (!$this->canAccess('update')) {
+			return redirect('forbidden');
+		}
+
+		$decoded = Hashids::decode($id);
+		$menuharian = MenuHarian::findOrFail($decoded[0] ?? null);
+
+		if (!$this->canModifyMenu($menuharian)) {
+			return redirect('forbidden');
+		}
+
+		try {
+			DB::transaction(function () use ($request, $menuharian) {
+				$this->syncDistribusiSekolah($request, $menuharian);
+			});
+
+			return redirect('dashboard/menu-harians/'.$id)
+				->with('flash_message', 'Distribusi ke sekolah berhasil disimpan');
+		} catch (\Exception $e) {
+			return redirect()->back()
+				->with('error_message', $e->getMessage())
+				->withInput();
+		}
+	}
+
     public function deleteAll(Request $request)
     {
-		if(Auth::user()->can('delete-menuharians')) {
-			if ($request->has('id')) {
-				$ids = $request->id;
-				foreach($ids as $id){
-					$idd = Hashids::decode($id);
-					MenuHarian::destroy($idd[0]);
-				}
-				return redirect('dashboard/menuharians')->with('flash_message', 'Data berhasil dihapus');
-			} else {
-				return redirect('dashboard/menuharians')->with('flash_message', 'Data mu aman, belum dihapus');
-			}
-		} else {
+		if(!$this->canAccess('delete')) {
 			return redirect('forbidden');
 		}
+
+		if (!$request->has('id')) {
+			return redirect('dashboard/menu-harians')->with('flash_message', 'Data mu aman, belum dihapus');
+		}
+
+		try {
+			DB::transaction(function () use ($request) {
+				foreach($request->id as $id){
+					$idd = Hashids::decode($id);
+					$menuharian = MenuHarian::find($idd[0] ?? null);
+
+					if ($menuharian && $this->canModifyMenu($menuharian)) {
+						$this->deleteFoto($menuharian);
+						$menuharian->delete();
+					}
+				}
+			});
+
+			return redirect('dashboard/menu-harians')->with('flash_message', 'Data berhasil dihapus');
+		} catch (\Exception $e) {
+			return redirect()->back()->with('error_message', $e->getMessage());
+		}
     }
+
+	private function validateMenuHarian(Request $request)
+	{
+		return $request->validate([
+			'tanggal' => 'required|date',
+			'nama' => 'required|string|max:255',
+			'sppg_id' => 'nullable',
+			'deskripsi' => 'nullable|string',
+			'foto' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+			'kecil_energi' => 'nullable|numeric|min:0',
+			'kecil_lemak' => 'nullable|numeric|min:0',
+			'kecil_protein' => 'nullable|numeric|min:0',
+			'kecil_karbohidrat' => 'nullable|numeric|min:0',
+			'kecil_serat' => 'nullable|numeric|min:0',
+			'besar_energi' => 'nullable|numeric|min:0',
+			'besar_lemak' => 'nullable|numeric|min:0',
+			'besar_protein' => 'nullable|numeric|min:0',
+			'besar_karbohidrat' => 'nullable|numeric|min:0',
+			'besar_serat' => 'nullable|numeric|min:0',
+		]);
+	}
+
+	private function syncDistribusiSekolah(Request $request, MenuHarian $menuharian)
+	{
+		if (!$request->has('distribusi_sekolah_ids')) {
+			return;
+		}
+
+		$request->validate([
+			'distribusi_sekolah_ids' => 'nullable|array',
+			'distribusi_sekolah_ids.*' => 'nullable|integer',
+			'distribusi_porsi' => 'nullable|array',
+			'distribusi_porsi.*' => 'nullable|numeric|min:0',
+			'distribusi_keterangan' => 'nullable|array',
+			'distribusi_keterangan.*' => 'nullable|string',
+		]);
+
+		$sppgId = $menuharian->sppg_id ?: $this->activeSppgId();
+		if (!$sppgId) {
+			throw new \Exception('SPPG wajib dipilih sebelum membuat distribusi ke sekolah.');
+		}
+
+		$allowedSekolahs = $this->availableDistribusiSekolahs($sppgId)->keyBy('id');
+		$selectedIds = collect($request->input('distribusi_sekolah_ids', []))
+			->filter()
+			->map(fn($id) => (int) $id)
+			->unique()
+			->values();
+
+		if (!$this->isAdminUser()) {
+			$invalid = $selectedIds->diff($allowedSekolahs->keys());
+			if ($invalid->isNotEmpty()) {
+				throw new \Exception('Ada sekolah yang tidak terhubung dengan SPPG Anda.');
+			}
+		}
+
+		$porsiInput = $request->input('distribusi_porsi', []);
+		$keteranganInput = $request->input('distribusi_keterangan', []);
+
+		foreach ($selectedIds as $sekolahId) {
+			$sekolah = $allowedSekolahs->get($sekolahId) ?: Sekolah::find($sekolahId);
+			if (!$sekolah) {
+				continue;
+			}
+
+			$existing = Distribusi::where('menu_harian_id', $menuharian->id)
+				->where('sekolah_id', $sekolahId)
+				->first();
+
+			$statusDistribusi = $existing && (int) $existing->status_distribusi > 1 ? 2 : 1;
+
+			Distribusi::updateOrCreate(
+				[
+					'menu_harian_id' => $menuharian->id,
+					'sekolah_id' => $sekolahId,
+				],
+				[
+					'tanggal' => $menuharian->tanggal,
+					'sppg_id' => $sppgId,
+					'jumlah_porsi' => isset($porsiInput[$sekolahId]) ? (int) $porsiInput[$sekolahId] : (int) $sekolah->jumlah_total,
+					'status_distribusi' => $statusDistribusi,
+					'keterangan' => $keteranganInput[$sekolahId] ?? null,
+					'created_by' => optional($existing)->created_by ?: Auth::id(),
+					'updated_by' => Auth::id(),
+				]
+			);
+		}
+
+		Distribusi::where('menu_harian_id', $menuharian->id)
+			->whereNotIn('sekolah_id', $selectedIds->all())
+			->where('status_distribusi', 1)
+			->delete();
+	}
+
+	private function storeFoto(Request $request)
+	{
+		if (!$request->hasFile('foto')) {
+			return null;
+		}
+
+		$file = $request->file('foto');
+		$destination = $this->uploadPath('menu-harian');
+		$filename = time().'_'.uniqid().'_'.str_replace(' ', '-', $file->getClientOriginalName());
+
+		if (!File::isDirectory($destination)) {
+			File::makeDirectory($destination, 0777, true, true);
+		}
+
+		$file->move($destination, $filename);
+
+		return 'menu-harian/'.$filename;
+	}
+
+	private function deleteFoto(MenuHarian $menuharian)
+	{
+		if (!$menuharian->foto) {
+			return;
+		}
+
+		$path = $this->uploadPath($menuharian->foto);
+
+		if (File::exists($path)) {
+			File::delete($path);
+			return;
+		}
+
+		if (Storage::disk('public')->exists($menuharian->foto)) {
+			Storage::disk('public')->delete($menuharian->foto);
+		}
+	}
+
+	private function fotoUrl($path)
+	{
+		return asset('po-content/uploads/'.$path);
+	}
+
+	private function uploadPath($path = '')
+	{
+		return str_replace(['\po-includes','/po-includes'], '', base_path('po-content/uploads/'.$path));
+	}
+
+	private function nutritionSummary(MenuHarian $menuharian, $prefix)
+	{
+		$energi = $menuharian->{$prefix.'_energi'};
+		$protein = $menuharian->{$prefix.'_protein'};
+
+		if ($energi === null && $protein === null) {
+			return '-';
+		}
+
+		return ($energi !== null ? rtrim(rtrim(number_format($energi, 2, '.', ''), '0'), '.') . ' kkal' : '-')
+			. ' | Protein '
+			. ($protein !== null ? rtrim(rtrim(number_format($protein, 2, '.', ''), '0'), '.') . 'g' : '-');
+	}
+
+	private function canAccess($action)
+	{
+		return Auth::user()->can($action.'-menu-harians');
+	}
+
+	private function canList()
+	{
+		return $this->canAccess('read')
+			&& ($this->isAdminUser() || (!$this->isSchoolUser() && $this->activeSppgId()));
+	}
+
+	private function canCreateMenu()
+	{
+		return $this->canAccess('create')
+			&& ($this->isAdminUser() || (!$this->isSchoolUser() && $this->activeSppgId()));
+	}
+
+	private function canViewMenu(MenuHarian $menuharian)
+	{
+		if ($this->isAdminUser()) {
+			return true;
+		}
+
+		$sppgId = $this->activeSppgId();
+		if ($sppgId) {
+			return (int) $menuharian->sppg_id === (int) $sppgId;
+		}
+
+		$sekolahId = $this->activeSekolahId();
+		if ($sekolahId) {
+			return $menuharian->distribusis()
+				->where('sekolah_id', $sekolahId)
+				->exists();
+		}
+
+		return false;
+	}
+
+	private function canModifyMenu(MenuHarian $menuharian)
+	{
+		if ($this->isAdminUser()) {
+			return true;
+		}
+
+		if ($this->isSchoolUser()) {
+			return false;
+		}
+
+		$sppgId = $this->activeSppgId();
+
+		return $sppgId && (int) $menuharian->sppg_id === (int) $sppgId;
+	}
+
+	private function visibleMenuHarians($query)
+	{
+		if ($this->isAdminUser()) {
+			return $query;
+		}
+
+		$sppgId = $this->activeSppgId();
+		if ($sppgId) {
+			return $query->where('sppg_id', $sppgId);
+		}
+
+		$sekolahId = $this->activeSekolahId();
+		if ($sekolahId) {
+			return $query->whereHas('distribusis', function ($q) use ($sekolahId) {
+				$q->where('sekolah_id', $sekolahId);
+			});
+		}
+
+		return $query->whereRaw('1 = 0');
+	}
+
+	private function resolveInputSppgId(Request $request, MenuHarian $menuharian = null)
+	{
+		if ($this->isAdminUser()) {
+			return $request->input('sppg_id');
+		}
+
+		if ($this->activeSppgId()) {
+			return $this->activeSppgId();
+		}
+
+		return optional($menuharian)->sppg_id;
+	}
+
+	private function availableDistribusiSekolahs($sppgId = null)
+	{
+		if (!$this->isAdminUser()) {
+			$sppgId = $this->activeSppgId();
+		}
+
+		if ($sppgId) {
+			$sppg = Sppg::find($sppgId);
+			return $sppg ? $sppg->sekolahs()->orderBy('nama')->get() : collect();
+		}
+
+		return Sekolah::orderBy('nama')->get();
+	}
+
+	private function isAdminUser()
+	{
+		return Auth::user()->hasRole('superadmin')
+			|| Auth::user()->hasRole('superadmin 2')
+			|| Auth::user()->hasRole('admin');
+	}
+
+	private function isSchoolUser()
+	{
+		return Auth::user()->hasRole('sekolah') || $this->activeSekolahId();
+	}
+
+	private function activeSppgId()
+	{
+		return Auth::user()->sppg_id;
+	}
+
+	private function activeSekolahId()
+	{
+		return Auth::user()->sekolah_id;
+	}
 }

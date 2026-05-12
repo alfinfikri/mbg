@@ -104,8 +104,9 @@ class UsersController extends Controller
     {
 		if(Auth::user()->can('create-users')) {
 			$roles = Role::orderBy('name', 'ASC')->get();
-			$sppgs = \App\Sppg::pluck('nama','id');
-			return view('backend.users.create', compact('roles', 'sppgs'));
+			$sppgs = \App\Sppg::orderBy('nama')->pluck('nama','id');
+			$sekolahs = \App\Sekolah::orderBy('nama')->pluck('nama','id');
+			return view('backend.users.create', compact('roles', 'sppgs', 'sekolahs'));
 		} else {
 			return redirect('forbidden');
 		}
@@ -134,6 +135,12 @@ class UsersController extends Controller
 					'sppg_id' => 'required|exists:sppgs,id'
 				]);
 			}
+
+			if ($request->roles == 'sekolah') {
+				$request->validate([
+					'sekolah_id' => 'required|exists:sekolahs,id'
+				]);
+			}
  
 			$username = str_replace(' ', '', strtolower($request->name)) . rand(100,999);
 
@@ -151,8 +158,13 @@ class UsersController extends Controller
  
 			if ($request->roles == 'sppg') {
 				$data['sppg_id'] = $request->sppg_id;
+				$data['sekolah_id'] = null;
+			} elseif ($request->roles == 'sekolah') {
+				$data['sppg_id'] = null;
+				$data['sekolah_id'] = $request->sekolah_id;
 			} else {
 				$data['sppg_id'] = null;
+				$data['sekolah_id'] = null;
 			}
 
 			// simpan user
@@ -219,16 +231,18 @@ class UsersController extends Controller
 					$roles = Role::where('id', '!=', '1')->orderBy('name', 'ASC')->get();
 				}
 
-				$user = User::select('id', 'sppg_id','username', 'name', 'email', 'telp', 'block', 'picture')->findOrFail($ids[0]);
-				$sppgs = \App\Sppg::pluck('nama','id');
-				return view('backend.users.edit', compact('user', 'roles', 'sppgs'));
+				$user = User::select('id', 'sppg_id', 'sekolah_id','username', 'name', 'email', 'telp', 'block', 'picture')->findOrFail($ids[0]);
+				$sppgs = \App\Sppg::orderBy('nama')->pluck('nama','id');
+				$sekolahs = \App\Sekolah::orderBy('nama')->pluck('nama','id');
+				return view('backend.users.edit', compact('user', 'roles', 'sppgs', 'sekolahs'));
 			} else {
 				if (Auth::user()->id == $ids[0]) {
 					$roles = Role::where('id', '!=', '1')->orderBy('name', 'ASC')->get();
 
-					$user = User::select('id', 'sppg_id', 'username', 'name', 'email', 'telp', 'block', 'picture')->findOrFail($ids[0]);
-					$sppgs = \App\Sppg::pluck('nama','id');
-					return view('backend.users.edit', compact('user', 'roles', 'sppgs'));
+					$user = User::select('id', 'sppg_id', 'sekolah_id', 'username', 'name', 'email', 'telp', 'block', 'picture')->findOrFail($ids[0]);
+					$sppgs = \App\Sppg::orderBy('nama')->pluck('nama','id');
+					$sekolahs = \App\Sekolah::orderBy('nama')->pluck('nama','id');
+					return view('backend.users.edit', compact('user', 'roles', 'sppgs', 'sekolahs'));
 				} else {
 					return redirect('dashboard/users/'. Hashids::encode(Auth::user()->id) .'/edit');
 				}
@@ -262,9 +276,15 @@ class UsersController extends Controller
 		]);
 
 		// 🔥 validasi sppg jika role sppg
-		if ($request->roles == 'sppg') {
+		if ($request->has('roles') && $request->roles == 'sppg') {
 			$request->validate([
 				'sppg_id' => 'required|exists:sppgs,id'
+			]);
+		}
+
+		if ($request->has('roles') && $request->roles == 'sekolah') {
+			$request->validate([
+				'sekolah_id' => 'required|exists:sekolahs,id'
 			]);
 		}
 
@@ -282,16 +302,23 @@ class UsersController extends Controller
 		}
 
 		// 🔥 handle sppg_id
-		if ($request->roles == 'sppg') {
-			$data['sppg_id'] = $request->sppg_id;
-		} else {
-			$data['sppg_id'] = null;
+		if ($request->has('roles')) {
+			if ($request->roles == 'sppg') {
+				$data['sppg_id'] = $request->sppg_id;
+				$data['sekolah_id'] = null;
+			} elseif ($request->roles == 'sekolah') {
+				$data['sppg_id'] = null;
+				$data['sekolah_id'] = $request->sekolah_id;
+			} else {
+				$data['sppg_id'] = null;
+				$data['sekolah_id'] = null;
+			}
 		}
 
 		// update user
 		$user->update($data);
 
-		if (Auth::user()->hasRole(['superadmin','admin'])) {
+		if (Auth::user()->hasRole(['superadmin','admin']) && $request->has('roles')) {
 
 			$role = Role::where('name', $request->roles)->first();
 

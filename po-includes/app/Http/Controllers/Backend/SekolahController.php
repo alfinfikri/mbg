@@ -7,8 +7,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
 use App\Sekolah;
+use App\Penerima;
 use App\Wilayah;
 
+use Illuminate\Support\Facades\DB;
 use Yajra\Datatables\Datatables;
 use Vinkla\Hashids\Facades\Hashids;
 
@@ -122,25 +124,33 @@ class SekolahController extends Controller
 		}
 
 		$request->validate([
-			'nama' => 'required',
+			'nama' => 'required|string|max:255',
 			'wilayah_id' => 'required',
-			'jenis_id' => 'required',
-			'status' => 'required',
-			'jumlah_total' => 'nullable|numeric',
-			'alamat' => 'nullable|string'
+			'jenis_id' => 'required|integer',
+			'status_layanan' => 'required|in:1,2,3',
+			'alamat' => 'nullable|string',
+			'latitude' => 'nullable|numeric',
+			'longitude' => 'nullable|numeric',
 		]);
+		$this->validateJumlahPenerima($request);
 
 		try {
-			Sekolah::create([
-				'nama' => $request->nama,
-				'wilayah_id' => $request->wilayah_id,
-				'jenis_id' => $request->jenis_id,
-				'status' => $request->status,
-				'jumlah_total' => $request->jumlah_total,
-				'alamat' => $request->alamat,
-				'created_by' => Auth::id(),
-				'updated_by' => Auth::id(),
-			]);
+			DB::transaction(function () use ($request) {
+				$sekolah = Sekolah::create([
+					'nama' => $request->nama,
+					'wilayah_id' => $request->wilayah_id,
+					'jenis_id' => $request->jenis_id,
+					'status_layanan' => $request->status_layanan,
+					'jumlah_total' => $this->getJumlahTotal($request),
+					'alamat' => $request->alamat,
+					'latitude' => $request->latitude,
+					'longitude' => $request->longitude,
+					'created_by' => Auth::id(),
+					'updated_by' => Auth::id(),
+				]);
+
+				$this->syncPenerimas($sekolah, $request);
+			});
 
 			return redirect('dashboard/sekolahs')->with('flash_message', 'Data Sekolah berhasil disimpan');
 
@@ -162,10 +172,11 @@ class SekolahController extends Controller
     {
 		if(Auth::user()->can('update-sekolahs')) {
 			$ids = Hashids::decode($id);
-			$sekolah = sekolah::findOrFail($ids[0]);
+			$sekolah = sekolah::with('penerimas')->findOrFail($ids[0]);
+			$penerimas = $sekolah->penerimas->pluck('jumlah', 'kategori');
 			$kecamatans = Wilayah::where('child_id', 0)->pluck('nama_wilayah', 'id');
 
-			return view('backend.sekolah.edit', compact('sekolah', 'kecamatans'));
+			return view('backend.sekolah.edit', compact('sekolah', 'penerimas', 'kecamatans'));
 		} else {
 			return redirect('forbidden');
 		}
@@ -193,23 +204,30 @@ class SekolahController extends Controller
 		$request->validate([
 			'nama' => 'required|string|max:255',
 			'wilayah_id' => 'required',
-			'jenis_id' => 'required',
-			'status' => 'required',
-			'jumlah_total' => 'nullable|numeric',
-			'alamat' => 'nullable|string'
+			'jenis_id' => 'required|integer',
+			'status_layanan' => 'required|in:1,2,3',
+			'alamat' => 'nullable|string',
+			'latitude' => 'nullable|numeric',
+			'longitude' => 'nullable|numeric',
 		]);
+		$this->validateJumlahPenerima($request);
 
 		try {
-			// UPDATE DATA
-			$sekolah->update([
-				'nama' => $request->nama,
-				'wilayah_id' => $request->wilayah_id,
-				'jenis_id' => $request->jenis_id,
-				'status' => $request->status,
-				'jumlah_total' => $request->jumlah_total,
-				'alamat' => $request->alamat,
-				'updated_by' => Auth::id(),
-			]);
+			DB::transaction(function () use ($request, $sekolah) {
+				$sekolah->update([
+					'nama' => $request->nama,
+					'wilayah_id' => $request->wilayah_id,
+					'jenis_id' => $request->jenis_id,
+					'status_layanan' => $request->status_layanan,
+					'jumlah_total' => $this->getJumlahTotal($request),
+					'alamat' => $request->alamat,
+					'latitude' => $request->latitude,
+					'longitude' => $request->longitude,
+					'updated_by' => Auth::id(),
+				]);
+
+				$this->syncPenerimas($sekolah, $request);
+			});
 
 			return redirect('dashboard/sekolahs')
 				->with('flash_message', 'Data sekolah berhasil diupdate');
@@ -264,6 +282,72 @@ class SekolahController extends Controller
 			return redirect('forbidden');
 		}
     }
+
+	private function validateJumlahPenerima(Request $request)
+	{
+		if ($this->isPosyanduKb($request->jenis_id)) {
+			$request->validate([
+				'jumlah_bumil' => 'required|integer|min:0',
+				'jumlah_busui' => 'required|integer|min:0',
+				'jumlah_balita' => 'required|integer|min:0',
+			]);
+
+			return;
+		}
+
+		$request->validate([
+			'jumlah_total' => 'required|integer|min:0',
+		]);
+	}
+
+	private function getJumlahTotal(Request $request)
+	{
+		if ($this->isPosyanduKb($request->jenis_id)) {
+			return (int) $request->jumlah_bumil + (int) $request->jumlah_busui + (int) $request->jumlah_balita;
+		}
+
+		return (int) $request->jumlah_total;
+	}
+
+	private function syncPenerimas(Sekolah $sekolah, Request $request)
+	{
+		Penerima::where('sekolah_id', $sekolah->id)->delete();
+
+		foreach ($this->getPenerimaRows($sekolah, $request) as $row) {
+			Penerima::create($row);
+		}
+	}
+
+	private function getPenerimaRows(Sekolah $sekolah, Request $request)
+	{
+		if ($this->isPosyanduKb($request->jenis_id)) {
+			return [
+				$this->makePenerimaRow($sekolah, 'bumil', $request->jumlah_bumil),
+				$this->makePenerimaRow($sekolah, 'busui', $request->jumlah_busui),
+				$this->makePenerimaRow($sekolah, 'balita', $request->jumlah_balita),
+			];
+		}
+
+		return [
+			$this->makePenerimaRow($sekolah, 'siswa', $request->jumlah_total),
+		];
+	}
+
+	private function makePenerimaRow(Sekolah $sekolah, $kategori, $jumlah)
+	{
+		return [
+			'sekolah_id' => $sekolah->id,
+			'wilayah_id' => $sekolah->wilayah_id,
+			'kategori' => $kategori,
+			'jumlah' => (int) $jumlah,
+			'status_mbg' => 1,
+		];
+	}
+
+	private function isPosyanduKb($jenisId)
+	{
+		return in_array((int) $jenisId, [1, 2], true);
+	}
 
 	public function getSekolah(Request $request)
 	{

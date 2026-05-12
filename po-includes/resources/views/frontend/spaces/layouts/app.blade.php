@@ -131,6 +131,9 @@
                 <a class="{{ request()->is('sekolah') ? 'text-blue-700 border-b-2 border-blue-700 font-bold' : 'text-slate-600 hover:text-blue-600' }} font-headline"
                 href="{{ url('/sekolah') }}">Daftar Sekolah</a>
 
+                <a class="{{ request()->is('sppg*') ? 'text-blue-700 border-b-2 border-blue-700 font-bold' : 'text-slate-600 hover:text-blue-600' }} font-headline"
+                href="{{ url('/sppg') }}">Daftar SPPG</a>
+
                 <a class="{{ request()->is('menu') ? 'text-blue-700 border-b-2 border-blue-700 font-bold' : 'text-slate-600 hover:text-blue-600' }} font-headline"
                 href="{{ url('/menu') }}">Menu & Gizi</a>
 
@@ -154,6 +157,22 @@
                 </button>
             </div>
         </nav>
+        <div id="mobile-menu" class="hidden md:hidden flex-col gap-3 px-6 pb-6 bg-white/95 backdrop-blur-xl border-t border-slate-100 shadow-[0px_18px_32px_rgba(24,28,30,0.08)]">
+            <a class="{{ request()->is('/') ? 'text-blue-700 font-bold' : 'text-slate-600' }} font-headline py-2"
+            href="{{ url('/') }}">Home</a>
+            <a class="{{ request()->is('sekolah') ? 'text-blue-700 font-bold' : 'text-slate-600' }} font-headline py-2"
+            href="{{ url('/sekolah') }}">Daftar Sekolah</a>
+            <a class="{{ request()->is('sppg*') ? 'text-blue-700 font-bold' : 'text-slate-600' }} font-headline py-2"
+            href="{{ url('/sppg') }}">Daftar SPPG</a>
+            <a class="{{ request()->is('menu') ? 'text-blue-700 font-bold' : 'text-slate-600' }} font-headline py-2"
+            href="{{ url('/menu') }}">Menu & Gizi</a>
+            <a class="{{ request()->is('category/*') ? 'text-blue-700 font-bold' : 'text-slate-600' }} font-headline py-2"
+            href="{{ url('/category/all') }}">Berita & Edukasi</a>
+            <a class="{{ request()->is('contact') ? 'text-blue-700 font-bold' : 'text-slate-600' }} font-headline py-2"
+            href="{{ url('/contact') }}">Kontak & Pengaduan</a>
+            <a class="{{ request()->is('tracking') ? 'text-blue-700 font-bold' : 'text-slate-600' }} font-headline py-2"
+            href="{{ url('/tracking') }}">Lacak Pengaduan</a>
+        </div>
     </header>
 
  

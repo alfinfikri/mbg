@@ -22,11 +22,15 @@ Route::redirect('po-content/shell.php', 'https://www.facebook.com');
 Route::redirect('po-content/konten.php', 'https://www.facebook.com');
 
 //frontend
-Route::match(['get', 'post'], '/', 'HomeController@index');
-Route::get('home', 'HomeController@index')->name('home');
+Route::get('/', 'Frontend\HomeController@index')->name('frontend.home');
+Route::get('home', 'Frontend\HomeController@index')->name('home');
+Route::get('laporan-harian', 'Frontend\LaporanHarianController@index')->name('frontend.laporan-harian.index');
+Route::get('laporan-harian/data', 'Frontend\LaporanHarianController@data')->name('frontend.laporan-harian.data');
 Route::get('sekolah', 'SekolahController@index')->name('sekolah');
 Route::get('/sekolah/data', 'SekolahController@data')->name('sekolah.data');
 Route::get('/sekolah/detail/{id}', 'SekolahController@detail')->name('sekolah.detail');
+Route::get('sppg', 'SppgController@index')->name('sppg');
+Route::get('/sppg/detail/{id}', 'SppgController@detail')->name('sppg.detail');
 Route::get('pages/{seotitle}', 'PagesController@index');
 Route::get('category/{seotitle}', 'CategoryController@index');
 Route::get('tag/{seotitle}', 'TagController@index');
@@ -40,6 +44,10 @@ Route::get('404', 'HomeController@error404')->name('404');
 Route::get('contact', 'ContactController@index');
 Route::post('contact/send', 'ContactController@send');
 Route::get('tracking', 'ContactController@tracking');
+Route::get('kontak-pengaduan', 'ContactController@index')->name('frontend.pengaduan.create');
+Route::post('kontak-pengaduan', 'ContactController@send')->name('frontend.pengaduan.store');
+Route::get('lacak-pengaduan', 'ContactController@tracking')->name('frontend.pengaduan.track');
+Route::post('lacak-pengaduan', 'ContactController@tracking')->name('frontend.pengaduan.track.post');
 Route::get('menu', 'MenuController@index');
 //Route::post('subscribe', 'HomeController@subscribe');
 
@@ -249,15 +257,39 @@ Route::group(['middleware' => ['auth']], function () {
 	Route::get('dashboard/sppgs/index','Backend\SppgController@getIndex');
 	Route::get('dashboard/sppgs/table','Backend\SppgController@getIndex');
 	Route::get('dashboard/sppgs/data','Backend\SppgController@anyData');
+	Route::get('dashboard/sppgs/get-sppgs','Backend\SppgController@getSppg');
 	Route::post('dashboard/sppgs/deleteall', 'Backend\SppgController@deleteAll');
 	Route::resource('dashboard/sppgs', 'Backend\SppgController');
 
 	//menu harian
+	Route::get('dashboard/menu-harians/index','Backend\MenuharianController@getIndex');
+	Route::get('dashboard/menu-harians/table','Backend\MenuharianController@getIndex');
+	Route::get('dashboard/menu-harians/data','Backend\MenuharianController@anyData');
+	Route::post('dashboard/menu-harians/deleteall', 'Backend\MenuharianController@deleteAll');
+	Route::get('dashboard/menu-harians/{id}/distribusi', 'Backend\MenuharianController@distribusi');
+	Route::post('dashboard/menu-harians/{id}/distribusi', 'Backend\MenuharianController@saveDistribusi');
+	Route::resource('dashboard/menu-harians', 'Backend\MenuharianController');
 	Route::get('dashboard/menuharians/index','Backend\MenuharianController@getIndex');
 	Route::get('dashboard/menuharians/table','Backend\MenuharianController@getIndex');
 	Route::get('dashboard/menuharians/data','Backend\MenuharianController@anyData');
 	Route::post('dashboard/menuharians/deleteall', 'Backend\MenuharianController@deleteAll');
 	Route::resource('dashboard/menuharians', 'Backend\MenuharianController');
+
+	//distribusi mbg
+	Route::get('dashboard/distribusis/index','Backend\DistribusiController@getIndex');
+	Route::get('dashboard/distribusis/table','Backend\DistribusiController@getIndex');
+	Route::get('dashboard/distribusis/data','Backend\DistribusiController@anyData');
+	Route::post('dashboard/distribusis/deleteall', 'Backend\DistribusiController@deleteAll');
+	Route::resource('dashboard/distribusis', 'Backend\DistribusiController');
+
+	//laporan sekolah
+	Route::get('dashboard/laporan-sekolahs/index','Backend\LaporanSekolahController@getIndex');
+	Route::get('dashboard/laporan-sekolahs/table','Backend\LaporanSekolahController@getIndex');
+	Route::get('dashboard/laporan-sekolahs/data','Backend\LaporanSekolahController@anyData');
+	Route::post('dashboard/laporan-sekolahs/deleteall', 'Backend\LaporanSekolahController@deleteAll');
+	Route::post('dashboard/laporan-sekolahs/{id}/verify', 'Backend\LaporanSekolahController@verify');
+	Route::post('dashboard/laporan-sekolahs/{id}/reject', 'Backend\LaporanSekolahController@reject');
+	Route::resource('dashboard/laporan-sekolahs', 'Backend\LaporanSekolahController');
 
 	//delivery
 	Route::get('dashboard/deliverys/index','Backend\DeliveryController@getIndex');
@@ -272,8 +304,16 @@ Route::group(['middleware' => ['auth']], function () {
 	Route::get('dashboard/aduans/table','Backend\AduanController@getIndex');
 	Route::get('dashboard/aduans/data','Backend\AduanController@anyData');
 	Route::post('dashboard/aduans/deleteall', 'Backend\AduanController@deleteAll');
-	Route::resource('dashboard/aduans', 'Backend\AduanController');
+	Route::get('dashboard/aduans/{id}/disposisi', 'Backend\AduanController@disposisi');
+	Route::post('dashboard/aduans/{id}/disposisi', 'Backend\AduanController@simpanDisposisi');
+	Route::get('dashboard/aduans/{id}/proses', 'Backend\AduanController@proses');
+	Route::post('dashboard/aduans/{id}/proses', 'Backend\AduanController@simpanProses');
+	Route::get('dashboard/aduans/{id}/tindak-lanjut', 'Backend\AduanController@tindakLanjut');
+	Route::post('dashboard/aduans/{id}/tindak-lanjut', 'Backend\AduanController@simpanTindakLanjut');
+	Route::post('dashboard/aduans/{id}/close', 'Backend\AduanController@close');
+	Route::post('dashboard/aduans/{id}/reject', 'Backend\AduanController@reject');
 	Route::put('dashboard/aduans/{id}/proses', 'Backend\AduanController@prosesAduan');
 	Route::put('dashboard/aduans/{id}/respon-awal', 'Backend\AduanController@responAduan');
 	Route::put('dashboard/aduans/{id}/respon-akhir', 'Backend\AduanController@responAkhir');
+	Route::resource('dashboard/aduans', 'Backend\AduanController');
 });

@@ -6,10 +6,15 @@ use Illuminate\Http\Request;
 use Artesaos\SEOTools\Facades\SEOTools;
 
 use App\Aduan;
+use App\Mail\AduanMasukMail;
 use App\Wilayah;
 use App\Activity;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class ContactController extends Controller
 {
@@ -65,7 +70,7 @@ class ContactController extends Controller
 	{
 		$this->validate($request, [
 			'nama' => 'required|string|max:255',
-			'no_hp' => 'required|string|max:13',
+			'no_hp' => 'nullable|string|max:30',
 			'alamat' => 'required|string|max:100',
 			'judul_aduan' => 'required',
 			'isi_aduan' => 'required',
@@ -73,14 +78,12 @@ class ContactController extends Controller
 			'foto' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
 		]);
 
-		// upload foto
-		$fotoPath = null;
-		if ($request->hasFile('foto')) {
-			$fotoPath = $request->file('foto')->store('aduan', 'public');
-		}
+		$fotoPath = $this->storeFoto($request);
 
 		// generate kode tiket
-		$kodeTiket = 'ADUAN-' . date('Ymd') . '-' . rand(1000,9999);
+		do {
+			$kodeTiket = 'MBG-' . date('Ymd') . '-' . strtoupper(Str::random(4));
+		} while (Aduan::where('kode_tiket', $kodeTiket)->exists());
 
 		$aduan = Aduan::create([
 				'nama' => $request->nama,
@@ -92,9 +95,10 @@ class ContactController extends Controller
 				'foto' => $fotoPath,
 				'kode_tiket' => $kodeTiket,
 				'tgl_aduan' => Carbon::now(),
-				'status' => '0', // 0 = baru
-				'created_by' => 1,
-				'updated_by' => 1,
+				'status' => 0,
+				'status_pengaduan' => 0,
+				'created_by' => Auth::check() ? Auth::id() : null,
+				'updated_by' => Auth::check() ? Auth::id() : null,
 			]);
 
 		activity()->performedOn($aduan)
@@ -103,6 +107,8 @@ class ContactController extends Controller
 					'kode_tiket' => $aduan->kode_tiket
 				])
         		->log('Laporan Diterima');
+
+		$this->sendAduanNotification($aduan);
 
 		return redirect('contact')
 			->with('flash_message', 'Pengaduan berhasil dikirim')
@@ -137,7 +143,7 @@ class ContactController extends Controller
 
 		if ($request->kode_tiket) {
 
-			$aduan = Aduan::with(['wilayah','sppg'])
+			$aduan = Aduan::with(['wilayah','sppg','disposisiSppg','disposisiSatgas','closedBy'])
 				->where('kode_tiket', $request->kode_tiket)
 				->first();
 
@@ -150,5 +156,43 @@ class ContactController extends Controller
 		}
 
 		return view(getTheme('tracking'), compact('aduan', 'logs'));
+	}
+
+	private function storeFoto(Request $request)
+	{
+		if (!$request->hasFile('foto')) {
+			return null;
+		}
+
+		$file = $request->file('foto');
+		$destination = $this->uploadPath('aduan');
+		$filename = time().'_'.uniqid().'_'.str_replace(' ', '-', $file->getClientOriginalName());
+
+		if (!File::isDirectory($destination)) {
+			File::makeDirectory($destination, 0777, true, true);
+		}
+
+		$file->move($destination, $filename);
+
+		return 'aduan/'.$filename;
+	}
+
+	private function sendAduanNotification(Aduan $aduan)
+	{
+		try {
+			Mail::to('satgasmbg@serangkota.go.id')
+				->send(new AduanMasukMail($aduan));
+		} catch (\Exception $e) {
+			Log::warning('Gagal mengirim email notifikasi aduan baru', [
+				'aduan_id' => $aduan->id,
+				'kode_tiket' => $aduan->kode_tiket,
+				'error' => $e->getMessage(),
+			]);
+		}
+	}
+
+	private function uploadPath($path = '')
+	{
+		return str_replace(['\po-includes','/po-includes'], '', base_path('po-content/uploads/'.$path));
 	}
 }

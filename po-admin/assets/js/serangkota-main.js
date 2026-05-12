@@ -14,15 +14,7 @@ $(document).ready(function() {
 	
 	$('[data-toggle="tooltip"]').tooltip();
 	
-	$("#filemanager").fancybox({
-		'width' : 900,
-		'height' : 580,
-		'type' : 'iframe',
-		'autoScale'	: false,
-		'autoSize' : false
-	});
-	
-	$("#filemanager-multi").fancybox({
+	$("#filemanager, #filemanager-multi, .filemanager-btn").fancybox({
 		'width' : 900,
 		'height' : 580,
 		'type' : 'iframe',

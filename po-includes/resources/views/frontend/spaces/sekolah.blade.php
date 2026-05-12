@@ -2,9 +2,7 @@
 
 @section('content')
 
-<section class="py-12 max-w-7xl mx-auto px-6">
-
-    <section class="py-12 max-w-7xl mx-auto px-6">
+<section class="pt-32 pb-20 px-6 max-w-7xl mx-auto">
 
     <!-- HEADER FULL WIDTH -->
     <div class="mb-12 max-w-3xl">
@@ -62,6 +60,15 @@
 
             <p class="text-xs mt-2">PAUD - SMA sudah menerima manfaat</p>
 
+            <div class="mt-5 pt-4 border-t border-gray-200">
+                <div class="text-xl font-bold text-on-surface">
+                    {{ number_format($totalPenerimaSiswaMbg, 0, ',', '.') }}
+                    /
+                    {{ number_format($totalPenerimaSiswa, 0, ',', '.') }}
+                </div>
+                <p class="text-xs text-on-surface-variant">Siswa Penerima</p>
+            </div>
+
             <div class="text-lg font-semibold mt-2 text-secondary">
                 {{ $persenSekolah }}%
             </div>
@@ -86,6 +93,19 @@
             </div>
 
             <p class="text-xs mt-2">Bumil, Busui & Balita sudah menerima manfaat</p>
+
+            <div class="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-gray-200">
+                @foreach($rincianIbuBalita as $item)
+                    <div>
+                        <p class="text-xs text-on-surface-variant">{{ $item['label'] }}</p>
+                        <div class="text-sm font-bold text-on-surface">
+                            {{ number_format($item['mbg'], 0, ',', '.') }}
+                            /
+                            {{ number_format($item['total'], 0, ',', '.') }}
+                        </div>
+                    </div>
+                @endforeach
+            </div>
 
             <div class="text-lg font-semibold mt-2 text-tertiary">
                 {{ $persenIbuBalita }}%
